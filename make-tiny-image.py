@@ -16,21 +16,16 @@ from tempfile import TemporaryDirectory
 from shutil import copy
 
 def make_busybox(tmpdir, runcmd):
-    usrsbin = os.path.join(tmpdir, "usr/sbin")
     bin = os.path.join(tmpdir, "bin")
-    os.makedirs(usrsbin, exist_ok=True)
     os.makedirs(bin, exist_ok=True)
 
-    def which(binname):
-        paths = ["/bin", "/sbin", "/usr/bin", "/usr/sbin"]
-        for path in paths:
-            exe = path + "/" + binname
-            if os.path.exists(exe):
-                return exe
-        raise Exception("Cannot find %s binary" % binname)
-    busyboxin = which("busybox")
+    subprocess.check_call(["busybox", "--install", "-s", bin])
+    shlink = os.path.join(tmpdir, "bin", "sh")
+    busyboxin = os.readlink(shlink)
     busyboxout = os.path.join(tmpdir, busyboxin[1:])
-    subprocess.check_call([busyboxin, "--install", "-s", bin])
+
+    bbbin = os.path.dirname(busyboxout)
+    os.makedirs(bbbin, exist_ok=True)
     if os.path.exists(busyboxout):
         os.unlink(busyboxout)
     copy(busyboxin, busyboxout)
