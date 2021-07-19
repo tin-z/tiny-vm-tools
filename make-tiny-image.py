@@ -139,7 +139,7 @@ parser.add_argument('--output', default="tiny-initrd.img",
                     help='Filename of output file')
 parser.add_argument('--run', default="setsid cttyhack /bin/sh",
                     help='Command to execute in guest (default: "setsid cttyhack /bin/sh")')
-parser.add_argument('--copy', action="append",
+parser.add_argument('--copy', action="append", default=[],
                     help='Extra files to copy  /src=/dst')
 parser.add_argument('binary', nargs="*",
                     help='List of binaries to include')
