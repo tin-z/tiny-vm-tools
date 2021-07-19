@@ -137,8 +137,8 @@ def make_image(tmpdir, output, copyfiles, binaries, runcmd):
 parser = argparse.ArgumentParser(description='Build a tiny initrd image')
 parser.add_argument('--output', default="tiny-initrd.img",
                     help='Filename of output file')
-parser.add_argument('--run', default="exec setsid cttyhack /bin/sh",
-                    help='Command to execute in guest (default: "exec setsid cttyhack /bin/sh")')
+parser.add_argument('--run', default="setsid cttyhack /bin/sh",
+                    help='Command to execute in guest (default: "setsid cttyhack /bin/sh")')
 parser.add_argument('--copy', action="append",
                     help='Extra files to copy  /src=/dst')
 parser.add_argument('binary', nargs="*",
