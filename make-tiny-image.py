@@ -84,6 +84,9 @@ def make_binaries(tmpdir, binaries):
             dst = os.path.join(bindir, binary)
         if os.path.exists(dst):
             os.unlink(dst)
+        dstdir = os.path.dirname(dst)
+        if not os.path.exists(dstdir):
+            os.makedirs(dstdir)
 
         print("Copy bin %s -> %s" % (src, dst))
         copy(src, dst)
