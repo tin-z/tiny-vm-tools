@@ -34,10 +34,13 @@ def make_busybox(tmpdir, runcmd):
     bin = os.path.join(tmpdir, "bin")
     os.makedirs(bin, exist_ok=True)
 
-    subprocess.check_call([which("busybox"), "--install", "-s", bin])
+    busyboxbin = which("busybox")
+    subprocess.check_call([busyboxbin, "--install", "-s", bin])
     shlink = os.path.join(tmpdir, "bin", "sh")
     busyboxin = os.readlink(shlink)
     busyboxout = os.path.join(tmpdir, busyboxin[1:])
+
+    install_deps(tmpdir, [busyboxbin])
 
     bbbin = os.path.dirname(busyboxout)
     os.makedirs(bbbin, exist_ok=True)
@@ -87,23 +90,14 @@ def get_deps(binary):
             return []
         raise
 
-def make_binaries(tmpdir, binaries):
-    bindir = os.path.join(tmpdir, "bin")
 
+
+def install_deps(tmpdir, binaries):
     seen = {}
     libs = []
+
     for binary in binaries:
         src = which(binary)
-        dst = os.path.join(tmpdir, "bin", os.path.basename(src))
-        if os.path.exists(dst):
-            os.unlink(dst)
-        dstdir = os.path.dirname(dst)
-        if not os.path.exists(dstdir):
-            os.makedirs(dstdir)
-
-        print("Copy bin %s -> %s" % (src, dst))
-        copy(src, dst)
-
         libs.extend(get_deps(src))
 
     while len(libs):
@@ -121,6 +115,23 @@ def make_binaries(tmpdir, binaries):
             print("Copy lib %s -> %s"% (lib, dst))
             seen[lib] = True
             libs.extend(get_deps(lib))
+
+def make_binaries(tmpdir, binaries):
+    bindir = os.path.join(tmpdir, "bin")
+
+    for binary in binaries:
+        src = which(binary)
+        dst = os.path.join(tmpdir, "bin", os.path.basename(src))
+        if os.path.exists(dst):
+            os.unlink(dst)
+        dstdir = os.path.dirname(dst)
+        if not os.path.exists(dstdir):
+            os.makedirs(dstdir)
+
+        print("Copy bin %s -> %s" % (src, dst))
+        copy(src, dst)
+
+    install_deps(tmpdir, binaries)
 
 def make_image(tmpdir, output, copyfiles, binaries, runcmd):
     make_busybox(tmpdir, runcmd)
