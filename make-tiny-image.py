@@ -69,19 +69,23 @@ poweroff -f
     os.chmod(init, stat.S_IRWXU)
 
 def get_deps(binary):
-    #if has_shbang(binary):
-    #    return []
-    out = subprocess.check_output(["ldd", binary]).decode("utf8")
-    deps = []
-    for line in out.split("\n"):
-        m = re.search("=> (/[^ ]+)", line)
-        if m is not None:
-            deps.append(m.group(1))
-        else:
-            m = re.match("\s*(/[^ ]+)\s+\(.*\)\s*$", line)
+    try:
+        out = subprocess.check_output(["ldd", binary], stderr=subprocess.STDOUT).decode("utf8")
+        deps = []
+        for line in out.split("\n"):
+            m = re.search("=> (/[^ ]+)", line)
             if m is not None:
                 deps.append(m.group(1))
-    return deps
+            else:
+                m = re.match("\s*(/[^ ]+)\s+\(.*\)\s*$", line)
+                if m is not None:
+                    deps.append(m.group(1))
+        return deps
+    except subprocess.CalledProcessError as ex:
+        out = ex.output.decode("utf8")
+        if "not a dynamic executable" in out:
+            return []
+        raise
 
 def make_binaries(tmpdir, binaries):
     bindir = os.path.join(tmpdir, "bin")
