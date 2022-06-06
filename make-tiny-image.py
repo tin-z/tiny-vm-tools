@@ -93,14 +93,8 @@ def make_binaries(tmpdir, binaries):
     seen = {}
     libs = []
     for binary in binaries:
-        if binary[0] == '/':
-            src = binary
-            dst = os.path.join(tmpdir, binary[1:])
-        else:
-            src = os.path.join("/usr/bin", binary)
-            if not os.path.exists(src):
-                src = os.path.join("/usr/sbin", binary)
-            dst = os.path.join(bindir, binary)
+        src = which(binary)
+        dst = os.path.join(tmpdir, "bin", os.path.basename(src))
         if os.path.exists(dst):
             os.unlink(dst)
         dstdir = os.path.dirname(dst)
