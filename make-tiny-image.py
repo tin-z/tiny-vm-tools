@@ -15,11 +15,26 @@ import subprocess
 from tempfile import TemporaryDirectory
 from shutil import copy
 
+def which(exe):
+    path = os.environ['PATH']
+
+    if exe[0] == '.':
+        exe = os.path.abspath(exe)
+    if exe[0] == '/':
+        return exe
+
+    for p in path.split(os.pathsep):
+        f = os.path.join(p, exe)
+        if os.path.isfile(f):
+            return f
+    else:
+        raise Exception("Cannot find '%s' in '%s'" % (exe, path))
+
 def make_busybox(tmpdir, runcmd):
     bin = os.path.join(tmpdir, "bin")
     os.makedirs(bin, exist_ok=True)
 
-    subprocess.check_call(["busybox", "--install", "-s", bin])
+    subprocess.check_call([which("busybox"), "--install", "-s", bin])
     shlink = os.path.join(tmpdir, "bin", "sh")
     busyboxin = os.readlink(shlink)
     busyboxout = os.path.join(tmpdir, busyboxin[1:])
