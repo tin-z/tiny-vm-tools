@@ -137,14 +137,18 @@ def make_image(tmpdir, output, copyfiles, binaries, runcmd):
     make_busybox(tmpdir, runcmd)
     make_binaries(tmpdir, binaries)
 
-    for copyfile in copyfiles:
-        bits=copyfile.split("=")
-        src = bits[0]
-        dst = os.path.join(tmpdir, bits[1][1:])
-        dstdir = os.path.dirname(dst)
-        os.makedirs(dstdir, exist_ok=True)
-        print("Copy extra %s -> %s" % (src, dst))
-        copy(src, dst)
+    for copyfileglob in copyfiles:
+        for copyfile in glob.glob(copyfileglob, recursive=True):
+            bits = copyfile.split("=")
+            src = bits[0]
+            if len(bits) == 1:
+                dst = os.path.join(tmpdir, bits[0][1:])
+            else:
+                dst = os.path.join(tmpdir, bits[1][1:])
+            dstdir = os.path.dirname(dst)
+            os.makedirs(dstdir, exist_ok=True)
+            print("Copy extra %s -> %s" % (src, dst))
+            copy(src, dst)
 
     files = glob.iglob(tmpdir + "/**", recursive=True)
     prefix=len(tmpdir) + 1
