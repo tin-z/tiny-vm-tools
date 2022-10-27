@@ -175,7 +175,7 @@ def make_kmods(tmpdir, kmods, kver):
         raise Exception("kmod dir '%s' does not exist" % kmoddir)
 
     allmods = {}
-    for path in glob.glob("**/*.ko*", root_dir=kmoddir, recursive=True):
+    for path in glob.glob(kmoddir + "/**/*.ko*", recursive=True):
         mod = os.path.basename(path).split(".")[0]
         mod = mod.replace("-", "_")
         allmods[mod] = path
