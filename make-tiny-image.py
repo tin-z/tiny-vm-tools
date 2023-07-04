@@ -77,6 +77,7 @@ poweroff -f
 
 def get_deps(binary):
     try:
+        os.environ["LC_ALL"] = "C"
         out = subprocess.check_output(["ldd", binary], stderr=subprocess.STDOUT).decode("utf8")
         deps = []
         for line in out.split("\n"):
