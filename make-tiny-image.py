@@ -65,10 +65,31 @@ mknod -m 666 /dev/tty c 5 0
 mknod -m 666 /dev/ttyS0 c 4 64
 mknod -m 444 /dev/random c 1 8
 mknod -m 444 /dev/urandom c 1 9
+
 """, file=fh)
 
         for mod in loadmods:
             print("insmod %s" % mod, file=fh)
+
+        if blockdevs:
+            # XXX sensibly wait for block dev partition probing
+            print("""
+for bdev in /sys/block/*
+do
+    dev=`basename $bdev`
+    maj=`awk -F : '{print $1}' $bdev/dev`
+    min=`awk -F : '{print $2}' $bdev/dev`
+    mknod -m 666 /dev/$dev b $maj $min
+
+    for part in $bdev/$dev*
+    do
+        dev=`basename $part`
+        maj=`awk -F : '{print $1}' $part/dev`
+        min=`awk -F : '{print $2}' $part/dev`
+        mknod -m 666 /dev/$dev b $maj $min
+    done
+done
+""", file=fh)
 
         print("""%s
 poweroff -f
@@ -191,9 +212,9 @@ def make_kmods(tmpdir, kmods, kver, verbose):
         loadmods.extend(copy_kmod(tmpdir, kmoddir, allmods, mod, verbose))
     return loadmods
 
-def make_image(tmpdir, output, copyfiles, kmods, kver, binaries, runcmd, verbose):
+def make_image(tmpdir, output, copyfiles, kmods, kver, binaries, runcmd, blockdevs, verbose):
     loadmods = make_kmods(tmpdir, kmods, kver, verbose)
-    make_busybox(tmpdir, runcmd, loadmods, verbose)
+    make_busybox(tmpdir, runcmd, loadmods, blockdevs, verbose)
     if len(loadmods) > 0 and "insmod" not in binaries:
         binaries.append("insmod")
     make_binaries(tmpdir, binaries, verbose)
@@ -232,6 +253,8 @@ parser.add_argument('--kmod', action="append", default=[],
                     help='Kernel modules to load')
 parser.add_argument('--kver', default=os.uname().release,
                     help='Kernel version to add modules for')
+parser.add_argument('--blockdevs', action='store_true',
+                    help='Wait for block devices and create /dev nodes')
 parser.add_argument('--verbose', action='store_true',
                     help='Display information about contents of initrd')
 parser.add_argument('binary', nargs="*",
@@ -245,4 +268,4 @@ if args.verbose:
 with TemporaryDirectory(prefix="make-tiny-image") as tmpdir:
     make_image(tmpdir, args.output, args.copy,
                args.kmod, args.kver, args.binary, args.run,
-               args.verbose)
+               args.blockdevs, args.verbose)
