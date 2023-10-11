@@ -30,7 +30,7 @@ def which(exe):
     else:
         raise Exception("Cannot find '%s' in '%s'" % (exe, path))
 
-def make_busybox(tmpdir, runcmd, loadmods):
+def make_busybox(tmpdir, runcmd, loadmods, blockdevs, verbose):
     bin = os.path.join(tmpdir, "bin")
     os.makedirs(bin, exist_ok=True)
 
@@ -40,7 +40,7 @@ def make_busybox(tmpdir, runcmd, loadmods):
     busyboxin = os.readlink(shlink)
     busyboxout = os.path.join(tmpdir, busyboxin[1:])
 
-    install_deps(tmpdir, [busyboxbin])
+    install_deps(tmpdir, [busyboxbin], verbose)
 
     bbbin = os.path.dirname(busyboxout)
     os.makedirs(bbbin, exist_ok=True)
@@ -97,7 +97,7 @@ def get_deps(binary):
 
 
 
-def install_deps(tmpdir, binaries):
+def install_deps(tmpdir, binaries, verbose):
     seen = {}
     libs = []
 
@@ -117,11 +117,12 @@ def install_deps(tmpdir, binaries):
             os.makedirs(libdir, exist_ok=True)
             dst = os.path.join(tmpdir, lib[1:])
             copy(lib, dst)
-            print("Copy lib %s -> %s"% (lib, dst))
+            if verbose:
+                print("Copy lib %s -> %s"% (lib, dst))
             seen[lib] = True
             libs.extend(get_deps(lib))
 
-def make_binaries(tmpdir, binaries):
+def make_binaries(tmpdir, binaries, verbose):
     bindir = os.path.join(tmpdir, "bin")
 
     for binary in binaries:
@@ -133,10 +134,11 @@ def make_binaries(tmpdir, binaries):
         if not os.path.exists(dstdir):
             os.makedirs(dstdir)
 
-        print("Copy bin %s -> %s" % (src, dst))
+        if verbose:
+            print("Copy bin %s -> %s" % (src, dst))
         copy(src, dst)
 
-    install_deps(tmpdir, binaries)
+    install_deps(tmpdir, binaries, verbose)
 
 
 def kmod_deps(modfile):
@@ -149,7 +151,7 @@ def kmod_deps(modfile):
             return [a.replace("-", "_") for a in deps.split(",")]
 
 
-def copy_kmod(tmpdir, kmoddir, allmods, mod):
+def copy_kmod(tmpdir, kmoddir, allmods, mod, verbose):
     src = os.path.join(kmoddir, allmods[mod])
     dstdir = os.path.join(tmpdir, "lib", "modules")
     if not os.path.exists(dstdir):
@@ -157,19 +159,20 @@ def copy_kmod(tmpdir, kmoddir, allmods, mod):
     dst = os.path.join(dstdir, os.path.basename(allmods[mod]))
     if os.path.exists(dst):
         return
-    print("Copy kmod %s -> %s" % (src, dst))
+    if verbose:
+        print("Copy kmod %s -> %s" % (src, dst))
     copy(src, dst)
 
     loadmods = []
     for depmod in kmod_deps(src):
-        loadmods.extend(copy_kmod(tmpdir, kmoddir, allmods, depmod))
+        loadmods.extend(copy_kmod(tmpdir, kmoddir, allmods, depmod, verbose))
 
     loadmods.append(os.path.join("/lib", "modules",
                                  os.path.basename(allmods[mod])))
     return loadmods
 
 
-def make_kmods(tmpdir, kmods, kver):
+def make_kmods(tmpdir, kmods, kver, verbose):
     print(kver)
     kmoddir = os.path.join("/lib", "modules", kver, "kernel")
     if not os.path.exists(kmoddir):
@@ -185,15 +188,15 @@ def make_kmods(tmpdir, kmods, kver):
     for mod in kmods:
         if mod not in allmods:
             raise Exception("kmod '%s' does not exist" % mod)
-        loadmods.extend(copy_kmod(tmpdir, kmoddir, allmods, mod))
+        loadmods.extend(copy_kmod(tmpdir, kmoddir, allmods, mod, verbose))
     return loadmods
 
-def make_image(tmpdir, output, copyfiles, kmods, kver, binaries, runcmd):
-    loadmods = make_kmods(tmpdir, kmods, kver)
-    make_busybox(tmpdir, runcmd, loadmods)
+def make_image(tmpdir, output, copyfiles, kmods, kver, binaries, runcmd, verbose):
+    loadmods = make_kmods(tmpdir, kmods, kver, verbose)
+    make_busybox(tmpdir, runcmd, loadmods, verbose)
     if len(loadmods) > 0 and "insmod" not in binaries:
         binaries.append("insmod")
-    make_binaries(tmpdir, binaries)
+    make_binaries(tmpdir, binaries, verbose)
 
     for copyfileglob in copyfiles:
         for copyfile in glob.glob(copyfileglob, recursive=True):
@@ -229,13 +232,17 @@ parser.add_argument('--kmod', action="append", default=[],
                     help='Kernel modules to load')
 parser.add_argument('--kver', default=os.uname().release,
                     help='Kernel version to add modules for')
+parser.add_argument('--verbose', action='store_true',
+                    help='Display information about contents of initrd')
 parser.add_argument('binary', nargs="*",
                     help='List of binaries to include')
 
 args = parser.parse_args()
 
-print (args.output)
+if args.verbose:
+    print("Creating %s" % args.output)
 
 with TemporaryDirectory(prefix="make-tiny-image") as tmpdir:
     make_image(tmpdir, args.output, args.copy,
-               args.kmod, args.kver, args.binary, args.run)
+               args.kmod, args.kver, args.binary, args.run,
+               args.verbose)
